@@ -3,14 +3,14 @@
 Usage:
 
   glyph-audit \\
-    --working sources/Velarium-working.glyphspackage \\
+    --target sources/Velarium-working.glyphspackage \\
     --pair Regular=sources/reference/VERDANA.TTF \\
     --pair Bold=sources/reference/VERDANAB.TTF \\
     --output coverage-report.md
 
 (equivalent to `python -m GlyphAudit ...`)
 
-A "pair" maps a working master name to a reference font.  The reference
+A "pair" maps a target master name to a reference font.  The reference
 half can be:
 
   * path to a .ttf or .otf
@@ -34,8 +34,8 @@ pass --from-config to skip --pair entirely:
     ref = "Inter[wght].ttf"
     axis = { wght = 700 }
 
-Single-master TTF inputs as the working font are also supported — pass
---working PATH and a single --pair "Default=<reference>".
+Single-master TTF inputs as the target font are also supported — pass
+--target PATH and a single --pair "Default=<reference>".
 """
 
 from __future__ import annotations
@@ -79,11 +79,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--working", required=True,
-                        help="Path to working font (.glyphspackage / .glyphs / .ttf / .otf)")
+    parser.add_argument("--target", required=True,
+                        help="Path to target font (.glyphspackage / .glyphs / .ttf / .otf)")
     parser.add_argument("--pair", action="append", default=[], type=_split_pair,
                         metavar="NAME=REFERENCE",
-                        help="Map a working master name to a reference font. "
+                        help="Map a target master name to a reference font. "
                              "Reference may be a TTF/OTF path, a Glyphs source path, "
                              "'Family-system', or any of those with an "
                              "'@axis=value[,axis=value]' suffix to pin a variable font. "
@@ -108,10 +108,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--filter",
         choices=["all"] + sorted(COLOR_FILTERS.keys()),
         default=None,
-        help="Restrict the working font to glyphs marked with a Glyphs colour. "
+        help="Restrict the target font to glyphs marked with a Glyphs colour. "
              "'yellow' = colour 3, 'light-green' = 4, 'green' = 5, "
              "'ready' = yellow OR light-green. Only effective for "
-             ".glyphs / .glyphspackage working sources; ignored for TTFs.",
+             ".glyphs / .glyphspackage target sources; ignored for TTFs.",
     )
     parser.add_argument(
         "--ai",
@@ -200,14 +200,14 @@ def main(argv: Optional[list[str]] = None) -> int:
                     f"\nNext steps:\n"
                     f"  1. Edit the file and uncomment / fill in your reference fonts under [instances.*].\n"
                     f"  2. Set 'from_config = true' under [defaults] to auto-pair them.\n"
-                    f"  3. Re-run: glyph-audit --working <path-to-your-font>\n",
+                    f"  3. Re-run: glyph-audit --target <path-to-your-font>\n",
                     file=sys.stderr,
                 )
                 return 0
 
         parser.error("at least one --pair or --from-config (with [instances]) is required")
 
-    working_filter = None
+    target_filter = None
     filter_label = None
     if args.filter != "all":
         allowed_colors = COLOR_FILTERS[args.filter]
@@ -223,10 +223,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     any_mismatch = False
 
     for master_name, ref_spec, ref_axes in pair_list:
-        print(f"Loading working master {master_name!r} ← {args.working}", file=sys.stderr)
+        print(f"Loading target master {master_name!r} ← {args.target}", file=sys.stderr)
         try:
-            working_view = load_font(args.working, master=master_name,
-                                     label=f"{_basename(args.working)} {master_name}")
+            target_view = load_font(args.target, master=master_name,
+                                     label=f"{_basename(args.target)} {master_name}")
         except (FileNotFoundError, ValueError, RuntimeError) as e:
             print(f"  FAIL: {e}", file=sys.stderr)
             return 2
@@ -239,27 +239,27 @@ def main(argv: Optional[list[str]] = None) -> int:
             print(f"  FAIL: {e}", file=sys.stderr)
             return 2
 
-        # Build the working filter for this pair (working_view varies per pair
+        # Build the target filter for this pair (target_view varies per pair
         # because each pair loads its own master). Filter only applies to
         # Glyphs sources where colours are populated.
         pair_filter = None
-        if working_filter is None and args.filter != "all":
+        if target_filter is None and args.filter != "all":
             allowed_colors = COLOR_FILTERS[args.filter]
-            if not working_view.colors:
+            if not target_view.colors:
                 print(
-                    f"  WARNING: --filter {args.filter} requested but the working "
+                    f"  WARNING: --filter {args.filter} requested but the target "
                     f"font has no colour metadata (source kind: "
-                    f"{working_view.source_kind}). Ignoring filter for this pair.",
+                    f"{target_view.source_kind}). Ignoring filter for this pair.",
                     file=sys.stderr,
                 )
             else:
-                colors_map = working_view.colors
+                colors_map = target_view.colors
                 pair_filter = lambda name, m=colors_map, a=allowed_colors: m.get(name) in a
 
         result = comparator.compare(
-            working_view, reference_view,
+            target_view, reference_view,
             pair_label=master_name,
-            working_filter=pair_filter,
+            target_filter=pair_filter,
             filter_label=filter_label if pair_filter else None,
         )
         results.append(result)

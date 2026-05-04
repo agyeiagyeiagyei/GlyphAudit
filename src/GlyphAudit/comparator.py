@@ -2,10 +2,10 @@
 
 Each `compare` produces a `ComparisonResult` with:
 
-  Tier 1 — codepoint matches  : every encoded working glyph
-  Tier 2 — variant matches    : every working glyph whose name has a
+  Tier 1 — codepoint matches  : every encoded target glyph
+  Tier 2 — variant matches    : every target glyph whose name has a
                                 recognised feature suffix (.smcp etc.)
-  Tier 3 — internal-only      : working glyphs that have neither an
+  Tier 3 — internal-only      : target glyphs that have neither an
                                 encoding nor a recognised suffix; these
                                 cannot be matched against the reference.
 
@@ -32,8 +32,8 @@ GlyphFilter = Callable[[str], bool]
 class CodepointRow:
     codepoint: int
     char: str
-    working_name: str
-    working_advance: Optional[int]
+    target_name: str
+    target_advance: Optional[int]
     reference_name: Optional[str]
     reference_advance: Optional[int]
     delta: Optional[float]
@@ -45,8 +45,8 @@ class VariantRow:
     base_codepoint: int
     base_char: str
     feature: str
-    working_name: str
-    working_advance: Optional[int]
+    target_name: str
+    target_advance: Optional[int]
     reference_name: Optional[str]
     reference_advance: Optional[int]
     delta: Optional[float]
@@ -61,11 +61,11 @@ class InternalRow:
 
 @dataclass
 class ComparisonResult:
-    working_label: str
+    target_label: str
     reference_label: str
     tolerance_units: float
     filter_label: Optional[str] = None
-    """Description of the working-glyph filter applied, e.g. 'yellow' or
+    """Description of the target-glyph filter applied, e.g. 'yellow' or
     'ready (yellow + light-green)'. None if no filter was applied."""
 
     codepoint_rows: list[CodepointRow] = field(default_factory=list)
@@ -99,29 +99,29 @@ class TieredComparator:
         self.tolerance = tolerance_units
         self.normalize = normalize_upm
 
-    def compare(self, working: FontView, reference: FontView,
+    def compare(self, target: FontView, reference: FontView,
                 pair_label: str = "",
-                working_filter: Optional[GlyphFilter] = None,
+                target_filter: Optional[GlyphFilter] = None,
                 filter_label: Optional[str] = None) -> ComparisonResult:
         result = ComparisonResult(
-            working_label=f"{working.label} ({pair_label})" if pair_label else working.label,
+            target_label=f"{target.label} ({pair_label})" if pair_label else target.label,
             reference_label=reference.label,
             tolerance_units=self.tolerance,
             filter_label=filter_label,
         )
 
-        self._tier1_codepoints(working, reference, result, working_filter)
-        self._tier2_variants(working, reference, result, working_filter)
-        self._tier3_internal(working, result, working_filter)
+        self._tier1_codepoints(target, reference, result, target_filter)
+        self._tier2_variants(target, reference, result, target_filter)
+        self._tier3_internal(target, result, target_filter)
         return result
 
     # ----- Tier 1 -----------------------------------------------------------
 
     def _tier1_codepoints(self, w: FontView, r: FontView, result: ComparisonResult,
-                          working_filter: Optional[GlyphFilter]):
+                          target_filter: Optional[GlyphFilter]):
         for cp in sorted(w.cmap):
             w_name = w.cmap[cp]
-            if working_filter and not working_filter(w_name):
+            if target_filter and not target_filter(w_name):
                 continue
             w_adv  = w.advances.get(w_name)
             r_name = r.cmap.get(cp)
@@ -131,8 +131,8 @@ class TieredComparator:
             row = CodepointRow(
                 codepoint=cp,
                 char=char,
-                working_name=w_name,
-                working_advance=w_adv,
+                target_name=w_name,
+                target_advance=w_adv,
                 reference_name=r_name,
                 reference_advance=r_adv,
                 delta=None,
@@ -145,17 +145,17 @@ class TieredComparator:
     # ----- Tier 2 -----------------------------------------------------------
 
     def _tier2_variants(self, w: FontView, r: FontView, result: ComparisonResult,
-                        working_filter: Optional[GlyphFilter]):
-        # Iterate working glyphs whose names parse as a feature variant.
+                        target_filter: Optional[GlyphFilter]):
+        # Iterate target glyphs whose names parse as a feature variant.
         for name in sorted(w.all_glyph_names):
-            if working_filter and not working_filter(name):
+            if target_filter and not target_filter(name):
                 continue
             parsed = parse_variant_suffix(name)
             if not parsed:
                 continue
             base_name, feature = parsed
 
-            # Find the source codepoint of the base glyph in the working font.
+            # Find the source codepoint of the base glyph in the target font.
             base_cp = None
             for cp, gname in w.cmap.items():
                 if gname == base_name:
@@ -178,8 +178,8 @@ class TieredComparator:
                 base_codepoint=base_cp,
                 base_char=char,
                 feature=feature,
-                working_name=name,
-                working_advance=w_adv,
+                target_name=name,
+                target_advance=w_adv,
                 reference_name=r_name,
                 reference_advance=r_adv,
                 delta=None,
@@ -192,7 +192,7 @@ class TieredComparator:
     # ----- Tier 3 -----------------------------------------------------------
 
     def _tier3_internal(self, w: FontView, result: ComparisonResult,
-                        working_filter: Optional[GlyphFilter]):
+                        target_filter: Optional[GlyphFilter]):
         # Glyphs that have no codepoint AND no recognised feature suffix.
         encoded_names = set(w.cmap.values())
         variant_names = set()
@@ -200,7 +200,7 @@ class TieredComparator:
             if parse_variant_suffix(name):
                 variant_names.add(name)
         for name in sorted(w.all_glyph_names):
-            if working_filter and not working_filter(name):
+            if target_filter and not target_filter(name):
                 continue
             if name in encoded_names or name in variant_names:
                 continue

@@ -60,7 +60,7 @@ def _summary(results: list[ComparisonResult]) -> list[str]:
             f"{t2['missing-in-reference']} missing · {t2['no-advance']} n/a"
         )
         lines.append(
-            f"| {r.working_label} → {r.reference_label} | {t1_summary} | {t2_summary} | {t3} |"
+            f"| {r.target_label} → {r.reference_label} | {t1_summary} | {t2_summary} | {t3} |"
         )
     lines.append("")
     return lines
@@ -68,12 +68,12 @@ def _summary(results: list[ComparisonResult]) -> list[str]:
 
 def _result_section(result: ComparisonResult) -> list[str]:
     lines: list[str] = [
-        f"## {result.working_label} → {result.reference_label}",
+        f"## {result.target_label} → {result.reference_label}",
         "",
         f"Tolerance: ±{result.tolerance_units} unit(s).",
     ]
     if result.filter_label:
-        lines.append(f"Working filter: **{result.filter_label}**.")
+        lines.append(f"Target filter: **{result.filter_label}**.")
     lines.append("")
     lines += _tier1_section(result.codepoint_rows)
     lines += _tier2_section(result.variant_rows)
@@ -110,7 +110,7 @@ def _tier1_section(rows: list[CodepointRow]) -> list[str]:
 
     if missing:
         out += [f"#### Missing in reference ({len(missing)})", ""]
-        # Compact list — codepoint, char, working name
+        # Compact list — codepoint, char, target name
         groups = _group_by_block(r.codepoint for r in missing)
         for block, cps in groups.items():
             cps_set = set(cps)
@@ -121,7 +121,7 @@ def _tier1_section(rows: list[CodepointRow]) -> list[str]:
             out.append("|----|------|--------------|")
             for r in block_rows:
                 ch = r.char.replace("|", "\\|")
-                out.append(f"| U+{r.codepoint:04X} | {ch} | `{r.working_name}` |")
+                out.append(f"| U+{r.codepoint:04X} | {ch} | `{r.target_name}` |")
             out.append("")
 
     return out
@@ -131,8 +131,8 @@ def _codepoint_row(r: CodepointRow) -> str:
     ch = r.char.replace("|", "\\|")
     delta = f"{r.delta:+g}" if r.delta is not None else "—"
     return (
-        f"| U+{r.codepoint:04X} | {ch} | `{r.working_name}` | "
-        f"{r.working_advance if r.working_advance is not None else '—'} | "
+        f"| U+{r.codepoint:04X} | {ch} | `{r.target_name}` | "
+        f"{r.target_advance if r.target_advance is not None else '—'} | "
         f"`{r.reference_name or '—'}` | "
         f"{r.reference_advance if r.reference_advance is not None else '—'} | "
         f"{delta} |"
@@ -166,8 +166,8 @@ def _tier2_section(rows: list[VariantRow]) -> list[str]:
             ch = r.base_char.replace("|", "\\|")
             delta = f"{r.delta:+g}" if r.delta is not None else "—"
             out.append(
-                f"| `{r.feature}` | U+{r.base_codepoint:04X} | {ch} | `{r.working_name}` | "
-                f"{r.working_advance if r.working_advance is not None else '—'} | "
+                f"| `{r.feature}` | U+{r.base_codepoint:04X} | {ch} | `{r.target_name}` | "
+                f"{r.target_advance if r.target_advance is not None else '—'} | "
                 f"`{r.reference_name or '—'}` | "
                 f"{r.reference_advance if r.reference_advance is not None else '—'} | "
                 f"{delta} |"
@@ -181,7 +181,7 @@ def _tier2_section(rows: list[VariantRow]) -> list[str]:
         for r in sorted(missing, key=lambda r: (r.feature, r.base_codepoint)):
             ch = r.base_char.replace("|", "\\|")
             out.append(
-                f"| `{r.feature}` | U+{r.base_codepoint:04X} | {ch} | `{r.working_name}` |"
+                f"| `{r.feature}` | U+{r.base_codepoint:04X} | {ch} | `{r.target_name}` |"
             )
         out.append("")
 
@@ -202,7 +202,7 @@ def _tier3_section(rows: list[InternalRow]) -> list[str]:
 
     out = ["### Tier 3 — Internal-only",
            "",
-           f"{len(rows)} working glyph(s) with no codepoint and no recognised "
+           f"{len(rows)} target glyph(s) with no codepoint and no recognised "
            "feature suffix — these have no logical counterpart in the reference and are listed for completeness.",
            ""]
     for note, names in sorted(by_note.items(), key=lambda kv: -len(kv[1])):

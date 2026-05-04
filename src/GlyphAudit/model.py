@@ -29,7 +29,7 @@ COLOR_FILTERS: dict[str, set[int]] = {
 }
 
 
-# Suffixes used in working glyph names that map to OpenType feature tags.
+# Suffixes used in target glyph names that map to OpenType feature tags.
 # These are the variants we can match across fonts even when the variant
 # itself isn't encoded.
 FEATURE_SUFFIXES: dict[str, str] = {

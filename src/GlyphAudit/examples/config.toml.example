@@ -8,7 +8,7 @@
 #
 # Three optional sections:
 #   [defaults]          CLI flag defaults — skip retyping common flags
-#   [instances.NAME]    Working-master ↔ reference map
+#   [instances.NAME]    Target-master ↔ reference map
 #   [providers.NAME]    Claude / OpenAI / Gemini API keys for --ai
 #
 # Anything you set in [defaults] is overridden by an explicit CLI flag.
@@ -17,7 +17,7 @@
 
 
 # ---------------------------------------------------------------------
-# [defaults] — make `glyph-audit --working FOO` the only command you need
+# [defaults] — make `glyph-audit --target FOO` the only command you need
 # ---------------------------------------------------------------------
 #
 # Each key here overrides argparse's hard-coded fallback. Keys are
@@ -45,7 +45,7 @@
 # [instances.NAME] — reusable reference map
 # ---------------------------------------------------------------------
 #
-# Each entry maps one of your working font's master names (case-insensitive)
+# Each entry maps one of your target font's master names (case-insensitive)
 # to a reference. NAME on the left should match the master name in your
 # Glyphs file (Regular / Bold / Display / Light / etc.).  When you run
 # with `from_config = true`, each entry becomes one --pair automatically.
@@ -81,7 +81,7 @@
 #    [instances.Regular]
 #    ref = "/Users/me/fonts/MyOldVersion.glyphspackage"
 #    # NOTE: with multiple masters, the tool picks the FIRST master in the
-#    # source file regardless of which working master is paired with it.
+#    # source file regardless of which target master is paired with it.
 #    # Workaround: export the source to TTF first, or open an issue if you
 #    # need per-pair master selection on Glyphs sources.
 #

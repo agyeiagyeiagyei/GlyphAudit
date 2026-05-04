@@ -53,7 +53,7 @@ def _format_results(results: list[ComparisonResult]) -> str:
     for r in results:
         c = r.counts()
         t1, t2 = c["tier1"], c["tier2"]
-        blocks.append(f"## {r.working_label} → {r.reference_label}")
+        blocks.append(f"## {r.target_label} → {r.reference_label}")
         if r.filter_label:
             blocks.append(f"Filter: {r.filter_label}")
         blocks.append(
@@ -73,11 +73,11 @@ def _format_results(results: list[ComparisonResult]) -> str:
         )[:MAX_TIER1_MISMATCHES]
         if t1_mm:
             blocks.append("\nTier 1 mismatches (top by |Δ|):")
-            blocks.append("U+      char  working_name                    w_adv   r_adv   delta")
+            blocks.append("U+      char  target_name                    w_adv   r_adv   delta")
             for row in t1_mm:
                 blocks.append(
-                    f"U+{row.codepoint:04X}  {row.char:<3}  {row.working_name:<32} "
-                    f"{_fmt(row.working_advance)}  {_fmt(row.reference_advance)}  "
+                    f"U+{row.codepoint:04X}  {row.char:<3}  {row.target_name:<32} "
+                    f"{_fmt(row.target_advance)}  {_fmt(row.reference_advance)}  "
                     f"{_fmt_delta(row.delta)}"
                 )
 
@@ -85,7 +85,7 @@ def _format_results(results: list[ComparisonResult]) -> str:
         t1_missing = [row for row in r.codepoint_rows if row.status == "missing-in-reference"]
         if t1_missing:
             sample = ", ".join(
-                f"U+{row.codepoint:04X} {row.working_name}"
+                f"U+{row.codepoint:04X} {row.target_name}"
                 for row in t1_missing[:15]
             )
             extra = "" if len(t1_missing) <= 15 else f" (and {len(t1_missing) - 15} more)"
@@ -98,11 +98,11 @@ def _format_results(results: list[ComparisonResult]) -> str:
         )[:MAX_TIER2_MISMATCHES]
         if t2_mm:
             blocks.append("\nTier 2 mismatches (top by |Δ|):")
-            blocks.append("feature  base_U+  char  working_name                    w_adv   r_adv   delta")
+            blocks.append("feature  base_U+  char  target_name                    w_adv   r_adv   delta")
             for row in t2_mm:
                 blocks.append(
                     f"{row.feature:<7}  U+{row.base_codepoint:04X}   {row.base_char:<3}  "
-                    f"{row.working_name:<32} {_fmt(row.working_advance)}  "
+                    f"{row.target_name:<32} {_fmt(row.target_advance)}  "
                     f"{_fmt(row.reference_advance)}  {_fmt_delta(row.delta)}"
                 )
 

@@ -1,10 +1,10 @@
 # GlyphAudit
 
-A small CLI tool for comparing a working font against one or more reference fonts.
+A small CLI tool for comparing a target font against one or more reference fonts.
 
 Designed to answer: **"how does my font compare to a known reference, glyph-by-glyph and variant-by-variant?"**
 
-The comparison is tiered so that every glyph in the working font is accounted for, even unencoded ones (small caps, stylistic alternates, oldstyle figures, etc.).
+The comparison is tiered so that every glyph in the target font is accounted for, even unencoded ones (small caps, stylistic alternates, oldstyle figures, etc.).
 
 ## Install
 
@@ -19,11 +19,11 @@ Once installed, the `glyph-audit` console command is available, equivalent to `p
 
 ## What it does
 
-For each working master and its paired reference, the tool produces three sections in the report:
+For each target master and its paired reference, the tool produces three sections in the report:
 
 | Tier | What it covers | How it pairs |
 |---|---|---|
-| **1 — Codepoint** | Every encoded glyph in the working font | By Unicode codepoint |
+| **1 — Codepoint** | Every encoded glyph in the target font | By Unicode codepoint |
 | **2 — Variant** | Working glyphs whose name ends in a recognised feature suffix (`.smcp`, `.ss01`, `.onum`, …) | By `(source codepoint, feature tag)`. Reference's variant is found via its compiled GSUB table (TTF/system) or its own naming convention (Glyphs source). |
 | **3 — Internal-only** | Working glyphs that have no codepoint and no recognised feature suffix (components, locl variants, ligature parts) | Listed for completeness — no attempt to match. |
 
@@ -39,7 +39,7 @@ The tool accepts three kinds of reference, distinguished by the value passed to 
 | `path/to/Velarium.glyphspackage` or `.glyphs` | Glyphs source — uses glyphsLib, derives variants from name suffixes |
 | `Family-system` *(suffix `-system`)* | Installed system font. Family and style accept either a space (`Verdana Bold-system`) or a hyphen (`Verdana-Bold-system`). |
 
-Working font accepts the same forms.
+Target font accepts the same forms.
 
 ### Variable font axis pinning
 
@@ -71,7 +71,7 @@ ref = "Inter-Light-system"
 
 ```bash
 python -m GlyphAudit \
-    --working sources/Velarium-working.glyphspackage \
+    --target sources/Velarium-working.glyphspackage \
     --from-config
 ```
 
@@ -93,7 +93,7 @@ from_config = true
 Precedence (highest first): explicit CLI flag → `[defaults]` in config → built-in fallback. With the table above you can run:
 
 ```bash
-python -m GlyphAudit --working sources/Velarium-working.glyphspackage
+python -m GlyphAudit --target sources/Velarium-working.glyphspackage
 ```
 
 …and get a `ready`-filtered, AI-summarised report against whichever pairs `[instances.*]` defines. Pass `--filter all` on the CLI to override the config and get an unfiltered run.
@@ -120,19 +120,19 @@ glyphsLib   # only if you load Glyphs sources
 
 ```bash
 python -m GlyphAudit \
-    --working sources/Velarium-working.glyphspackage \
+    --target sources/Velarium-working.glyphspackage \
     --pair Regular=sources/reference/VERDANA.TTF \
     --pair Bold=sources/reference/VERDANAB.TTF \
     --output coverage-report.md
 ```
 
-A `--pair` is `MASTER_NAME=REFERENCE`. The master name selects which working master to compare; the reference is loaded once and compared against just that master. Repeat `--pair` for additional weights.
+A `--pair` is `MASTER_NAME=REFERENCE`. The master name selects which target master to compare; the reference is loaded once and compared against just that master. Repeat `--pair` for additional weights.
 
 ### System-font reference
 
 ```bash
 python -m GlyphAudit \
-    --working MyFont.ttf \
+    --target MyFont.ttf \
     --pair Default="Verdana-system" \
     --output report.md
 ```
@@ -141,7 +141,7 @@ python -m GlyphAudit \
 
 ```bash
 python -m GlyphAudit \
-    --working sources/Velarium.glyphspackage \
+    --target sources/Velarium.glyphspackage \
     --pair Bold=sources/reference/VERDANAB.TTF \
     --pair Bold-vs-system="Verdana Bold-system" \
     --output report.md
@@ -153,14 +153,14 @@ python -m GlyphAudit \
 
 | Flag | Default | Notes |
 |---|---|---|
-| `--working PATH` | required | Working font (TTF / OTF / .glyphspackage / .glyphs / system) |
+| `--target PATH` | required | Target font (TTF / OTF / .glyphspackage / .glyphs / system) |
 | `--pair NAME=REF` | repeatable | One per master to compare. Required unless `--from-config` is given. REF accepts `@axis=value` suffix for VF pinning. |
 | `--from-config` | off | Build pairs from `[instances.NAME]` entries in the config file. Adds to any explicit `--pair` flags. |
 | `--output PATH` | `glyph-audit-report.md` (or `glyph-audit-filtered.md` when `--filter` is active) | Markdown output path |
 | `--tolerance N` | `1.0` | Max acceptable advance-width delta in font units (or per-1000-UPM if normalising) |
 | `--no-normalize-upm` | off | Compare raw advances instead of per-1000-UPM-normalized values |
 | `--title TEXT` | "Glyph Audit Report" | Top-level report heading |
-| `--filter NAME` | `all` | Restrict working font to glyphs marked with a Glyphs colour (`yellow`, `light-green`, `green`, `ready`). Only effective for `.glyphs` / `.glyphspackage` working sources; ignored for TTFs. |
+| `--filter NAME` | `all` | Restrict target font to glyphs marked with a Glyphs colour (`yellow`, `light-green`, `green`, `ready`). Only effective for `.glyphs` / `.glyphspackage` target sources; ignored for TTFs. |
 | `--ai PROVIDER` | off | Add an AI-written health-check summary at the top of the report. Provider is one of `claude`, `openai`, `gemini`. Requires the provider's SDK and an API key (see "AI summary" below). |
 | `--prompt PATH` | bundled default | Custom prompt template for the AI summary. Defaults to `prompts/health_check.md` inside the package. |
 | `--config PATH` | `~/.glyph-audit/config.toml` | Override AI config file location. |
@@ -227,7 +227,7 @@ Recognised placeholders the tool substitutes into the prompt: `{report_data}`, `
 
 ## Reading the report
 
-Each working/reference pairing gets one section. The section starts with counts, then lists mismatches (sorted by severity — largest delta first). Missing-in-reference lists are grouped by Unicode block to make scope obvious at a glance. Tier 3 (internal-only) glyphs are bucketed by note so component/ligature noise stays separated.
+Each target/reference pairing gets one section. The section starts with counts, then lists mismatches (sorted by severity — largest delta first). Missing-in-reference lists are grouped by Unicode block to make scope obvious at a glance. Tier 3 (internal-only) glyphs are bucketed by note so component/ligature noise stays separated.
 
 ## Lifting this into a standalone repo
 

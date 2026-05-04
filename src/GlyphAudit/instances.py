@@ -1,6 +1,6 @@
 """Loader for the `[instances.NAME]` section in the user config.
 
-Each entry maps a working-master name to a reference spec plus an
+Each entry maps a target-master name to a reference spec plus an
 optional axis location. Used by `--from-config` to build pairs without
 the user typing them on the command line.
 
@@ -33,7 +33,7 @@ from .ai.config import DEFAULT_CONFIG_PATH, ConfigError
 
 @dataclass
 class InstanceSpec:
-    name: str                            # working master name
+    name: str                            # target master name
     ref: str                             # raw spec passed to load_font
     axes: dict[str, float] = field(default_factory=dict)
 

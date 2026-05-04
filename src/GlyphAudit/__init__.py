@@ -1,6 +1,6 @@
 """Font coverage and width comparison tool.
 
-Compares a working font against one or more reference fonts using a
+Compares a target font against one or more reference fonts using a
 three-tier match: codepoint, feature variant, and internal-only.
 
 Designed to be lifted out of this repo as a standalone package — keep
