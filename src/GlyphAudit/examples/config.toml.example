@@ -1,76 +1,155 @@
+# =====================================================================
 # GlyphAudit configuration
+# =====================================================================
 #
-# Save this file at ~/.glyph-audit/config.toml (default location) or
-# pass --config PATH to point at it from another location. API keys live
-# here; treat it like any other secrets file. If you keep a copy in a
-# git repo, add the real config (not the example) to .gitignore.
+# This file lives at ~/.glyph-audit/config.toml by default. Override
+# location with `--config PATH`.  API keys live here; treat it like any
+# other secrets file (don't commit it to a public repo).
 #
-# First-time setup:
-#   mkdir -p ~/.glyph-audit
-#   cp examples/config.toml.example ~/.glyph-audit/config.toml
-#   $EDITOR ~/.glyph-audit/config.toml
-#
-# Sections (all optional — set only what you want):
-#   [defaults]            CLI flag defaults (output, filter, tolerance, …)
-#   [providers.NAME]      AI provider API keys + model overrides
-#   [instances.NAME]      Reusable working-master → reference map
+# Three optional sections:
+#   [defaults]          CLI flag defaults — skip retyping common flags
+#   [instances.NAME]    Working-master ↔ reference map
+#   [providers.NAME]    Claude / OpenAI / Gemini API keys for --ai
 #
 # Anything you set in [defaults] is overridden by an explicit CLI flag.
+# Anything you set in [instances.*] is consumed when you pass
+# --from-config (or set it as a default below).
 
 
-# --- Default CLI values ----------------------------------------------------
+# ---------------------------------------------------------------------
+# [defaults] — make `glyph-audit --working FOO` the only command you need
+# ---------------------------------------------------------------------
 #
-# Set frequently-used flags here so you don't retype them every run.
-# Anything you pass on the command line overrides these.
+# Each key here overrides argparse's hard-coded fallback. Keys are
+# the same names as the long-form CLI flags (with hyphens converted to
+# underscores: --no-normalize-upm → no_normalize_upm).
 #
-# [defaults]
-# output           = "glyph-audit-report.md"   # auto-flips to "glyph-audit-filtered.md" if filter is set
-# filter           = "ready"                     # all / yellow / light-green / green / ready
-# tolerance        = 1.0
-# title            = "Velarium Coverage"
-# ai               = "claude"                    # default --ai provider
-# prompt           = "~/.glyph-audit/prompts/strict.md"
-# no_normalize_upm = false
-# from_config      = true                        # auto-build pairs from [instances.*]
+# A typical config looks like this:
+#
+#   [defaults]
+#   filter      = "yellow"     # only audit glyphs marked yellow in Glyphs.app
+#   from_config = true         # auto-build pairs from [instances.*] below
+#   title       = "Mytypeface vs Reference"
+#   ai          = "claude"     # adds AI summary to every run
+#
+# Other recognised keys:
+#   output           "path/to/report.md"
+#   tolerance        1.0
+#   prompt           "path/to/custom-prompt.md"
+#   no_normalize_upm false
+#
+# Filter values: all | yellow | light-green | green | ready (yellow OR light-green)
 
 
-# --- AI provider keys ------------------------------------------------------
+# ---------------------------------------------------------------------
+# [instances.NAME] — reusable reference map
+# ---------------------------------------------------------------------
 #
-# Only the providers you actually plan to use need their section filled
-# in. Missing sections fall back to environment variables:
+# Each entry maps one of your working font's master names (case-insensitive)
+# to a reference. NAME on the left should match the master name in your
+# Glyphs file (Regular / Bold / Display / Light / etc.).  When you run
+# with `from_config = true`, each entry becomes one --pair automatically.
+#
+# Each entry has:
+#   ref   = "..."                   required — the reference spec (see below)
+#   axis  = { wght = 400, ... }     optional — pin a variable font's axis location
+#
+# Five reference forms the tool understands:
+#
+# 1. Static TTF / OTF on disk
+#    [instances.Regular]
+#    ref = "/Users/me/fonts/Verdana.ttf"
+#
+# 2. Variable font on disk + axis pin
+#    [instances.Regular]
+#    ref  = "/Users/me/fonts/Inter[wght].ttf"
+#    axis = { wght = 400 }
+#
+#    [instances.Bold]
+#    ref  = "/Users/me/fonts/Inter[wght].ttf"
+#    axis = { wght = 700 }
+#
+# 3. System-installed font (macOS / Windows / Linux)
+#    [instances.Regular]
+#    ref = "Helvetica-system"          # Regular implied
+#
+#    [instances.Bold]
+#    ref = "Helvetica-Bold-system"     # hyphen-form
+#    # ref = "Helvetica Bold-system"   # space-form, both work
+#
+# 4. Source file (.glyphspackage / .glyphs)
+#    [instances.Regular]
+#    ref = "/Users/me/fonts/MyOldVersion.glyphspackage"
+#    # NOTE: with multiple masters, the tool picks the FIRST master in the
+#    # source file regardless of which working master is paired with it.
+#    # Workaround: export the source to TTF first, or open an issue if you
+#    # need per-pair master selection on Glyphs sources.
+#
+# 5. Google Font (download once, then reference like any TTF or VF)
+#    Three patterns work, pick whichever fits your workflow:
+#
+#    a) Static download from fonts.google.com
+#       After unzipping, point at the static file:
+#       [instances.Regular]
+#       ref = "/Users/me/fonts/Inter/static/Inter-Regular.ttf"
+#       [instances.Bold]
+#       ref = "/Users/me/fonts/Inter/static/Inter-Bold.ttf"
+#
+#    b) Variable file (most modern Google Fonts ship as VFs):
+#       [instances.Regular]
+#       ref  = "/Users/me/fonts/Inter/Inter[opsz,wght].ttf"
+#       axis = { wght = 400 }
+#       [instances.Bold]
+#       ref  = "/Users/me/fonts/Inter/Inter[opsz,wght].ttf"
+#       axis = { wght = 700 }
+#
+#    c) Install once via Font Book, then reference as system:
+#       [instances.Regular]
+#       ref = "Inter-Regular-system"
+#
+#    Tip: for option (a)/(b), `gftools download Inter` (from the gftools
+#    pip package) automates the download into ~/Library/Fonts on macOS.
+
+
+# ---------------------------------------------------------------------
+# [providers.NAME] — AI summary keys
+# ---------------------------------------------------------------------
+#
+# Only fill in the provider you'll actually use (--ai claude / openai /
+# gemini). Missing sections fall back to environment variables:
 #   ANTHROPIC_API_KEY  /  OPENAI_API_KEY  /  GEMINI_API_KEY
 #
-# `model` is optional — sensible defaults are baked into the tool.
-
-[providers.claude]
-api_key = "sk-ant-REPLACE-ME"
-# model = "claude-sonnet-4-6"
-
-[providers.openai]
-api_key = "sk-REPLACE-ME"
-# model = "gpt-4o-mini"
-
-[providers.gemini]
-api_key = "AIza-REPLACE-ME"
-# model = "gemini-2.0-flash"
-
-
-# Optional: a reusable instance map. Pass `--from-config` on the CLI to
-# turn each [instances.NAME] entry into a working-master → reference pair.
-# `ref` is any spec the tool understands:
-#   * a path to a static .ttf / .otf
-#   * a path to a variable .ttf / .otf  (combine with the `axis` table to pin)
-#   * "Family-system"            → installed system font (dash or space form)
-#   * "Family Bold-system"
-# The optional `axis` table pins a variable font's design-space location.
-# It's silently ignored for static fonts.
+# Required SDKs are optional pip extras:
+#   pip install ".[claude]"     # for --ai claude
+#   pip install ".[openai]"     # for --ai openai
+#   pip install ".[gemini]"     # for --ai gemini
+#   pip install ".[ai]"         # all three
 #
+# `model` is optional — defaults are baked into the tool.
+
+# [providers.claude]
+# api_key = "sk-ant-REPLACE-ME"
+# model   = "claude-sonnet-4-6"
+
+# [providers.openai]
+# api_key = "sk-REPLACE-ME"
+# model   = "gpt-4o-mini"
+
+# [providers.gemini]
+# api_key = "AIza-REPLACE-ME"
+# model   = "gemini-2.0-flash"
+
+
+# =====================================================================
+# Below: a concrete starter you can edit. Uncomment the lines you need.
+# =====================================================================
+
+# [defaults]
+# filter      = "yellow"
+# from_config = true
+
 # [instances.Regular]
-# ref = "VERDANA.TTF"
-#
+# ref = "/path/to/your/reference-Regular.ttf"
+
 # [instances.Bold]
-# ref = "Inter[wght].ttf"
-# axis = { wght = 700 }
-#
-# [instances.Light]
-# ref = "Inter-Light-system"
+# ref = "/path/to/your/reference-Bold.ttf"

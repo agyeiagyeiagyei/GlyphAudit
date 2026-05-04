@@ -187,6 +187,24 @@ def main(argv: Optional[list[str]] = None) -> int:
         pair_list.extend((inst.name, inst.ref, inst.axes) for inst in instances)
 
     if not pair_list:
+        # First-run convenience: if the user has no config and no --pair,
+        # bootstrap a copy of the bundled template into ~/.glyph-audit/config.toml
+        # and exit successfully with instructions.
+        default_config = os.path.expanduser("~/.glyph-audit/config.toml")
+        if not args.config and not os.path.isfile(default_config):
+            target = _bootstrap_default_config(default_config)
+            if target:
+                print(
+                    f"\nNo config and no --pair/--from-config supplied.\n"
+                    f"\nBootstrapped a starter config at: {target}\n"
+                    f"\nNext steps:\n"
+                    f"  1. Edit the file and uncomment / fill in your reference fonts under [instances.*].\n"
+                    f"  2. Set 'from_config = true' under [defaults] to auto-pair them.\n"
+                    f"  3. Re-run: glyph-audit --working <path-to-your-font>\n",
+                    file=sys.stderr,
+                )
+                return 0
+
         parser.error("at least one --pair or --from-config (with [instances]) is required")
 
     working_filter = None
@@ -293,6 +311,19 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 def _basename(path: str) -> str:
     return os.path.basename(path.rstrip("/"))
+
+
+def _bootstrap_default_config(target_path: str) -> Optional[str]:
+    """Copy the bundled template to target_path. Returns the resolved path
+    on success, or None if the template can't be located."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    template = os.path.join(here, "examples", "config.toml.example")
+    if not os.path.isfile(template):
+        return None
+    import shutil
+    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+    shutil.copy(template, target_path)
+    return target_path
 
 
 if __name__ == "__main__":
