@@ -1,0 +1,299 @@
+"""Command-line interface for Glyph Audit (`glyph-audit`).
+
+Usage:
+
+  glyph-audit \\
+    --working sources/Velarium-working.glyphspackage \\
+    --pair Regular=sources/reference/VERDANA.TTF \\
+    --pair Bold=sources/reference/VERDANAB.TTF \\
+    --output coverage-report.md
+
+(equivalent to `python -m GlyphAudit ...`)
+
+A "pair" maps a working master name to a reference font.  The reference
+half can be:
+
+  * path to a .ttf or .otf
+  * path to a .glyphspackage or .glyphs
+  * "<Name>-system"   (system-installed font; '-' or ' ' separates
+                       family from style: 'Verdana Bold-system' or
+                       'Verdana-Bold-system')
+
+Append '@axis=value[,axis=value]' to pin a variable font:
+
+    --pair Regular="path/to/Inter[wght].ttf@wght=400"
+    --pair Bold="Inter-system@wght=700"
+
+Or define a reusable instance map in ~/.glyph-audit/config.toml and
+pass --from-config to skip --pair entirely:
+
+    [instances.Regular]
+    ref = "VERDANA.TTF"
+
+    [instances.Bold]
+    ref = "Inter[wght].ttf"
+    axis = { wght = 700 }
+
+Single-master TTF inputs as the working font are also supported — pass
+--working PATH and a single --pair "Default=<reference>".
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+from typing import Optional
+
+from .loaders import load_font
+from .comparator import TieredComparator
+from .defaults import load_defaults
+from .instances import load_instances, InstanceSpec
+from .ai.config import ConfigError
+from .model import COLOR_FILTERS, GLYPHS_COLOR_NAMES
+from .report import write_markdown
+
+
+# Hard-coded fallbacks. Used only when neither CLI nor config supplies a value.
+HARDCODED = {
+    "output_no_filter": "glyph-audit-report.md",
+    "output_filtered":  "glyph-audit-filtered.md",
+    "tolerance":        1.0,
+    "title":            "Glyph Audit Report",
+    "filter":           "all",
+}
+
+
+def _split_pair(arg: str) -> tuple[str, str]:
+    if "=" not in arg:
+        raise argparse.ArgumentTypeError(
+            f"--pair expected NAME=REFERENCE form, got: {arg!r}"
+        )
+    name, ref = arg.split("=", 1)
+    return name.strip(), ref.strip()
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="glyph-audit",
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--working", required=True,
+                        help="Path to working font (.glyphspackage / .glyphs / .ttf / .otf)")
+    parser.add_argument("--pair", action="append", default=[], type=_split_pair,
+                        metavar="NAME=REFERENCE",
+                        help="Map a working master name to a reference font. "
+                             "Reference may be a TTF/OTF path, a Glyphs source path, "
+                             "'Family-system', or any of those with an "
+                             "'@axis=value[,axis=value]' suffix to pin a variable font. "
+                             "Repeatable. Required unless --from-config is given.")
+    parser.add_argument("--from-config", action="store_true", default=None,
+                        help="Build pairs from [instances.NAME] sections in the "
+                             "config file (default ~/.glyph-audit/config.toml; "
+                             "override with --config). Adds to any --pair entries.")
+    # All defaults below are sentinel-None so we can layer config defaults
+    # on top before falling back to HARDCODED values.
+    parser.add_argument("--output", default=None,
+                        help="Markdown report path. Default: "
+                             "'glyph-audit-report.md' (or 'glyph-audit-filtered.md' "
+                             "if --filter is set). Overridable via [defaults].output in config.")
+    parser.add_argument("--tolerance", type=float, default=None,
+                        help="Advance-width tolerance in font units (default: 1.0).")
+    parser.add_argument("--no-normalize-upm", action="store_true", default=None,
+                        help="Compare raw advances without normalising to 1000 UPM.")
+    parser.add_argument("--title", default=None,
+                        help="Report title (default: 'Glyph Audit Report').")
+    parser.add_argument(
+        "--filter",
+        choices=["all"] + sorted(COLOR_FILTERS.keys()),
+        default=None,
+        help="Restrict the working font to glyphs marked with a Glyphs colour. "
+             "'yellow' = colour 3, 'light-green' = 4, 'green' = 5, "
+             "'ready' = yellow OR light-green. Only effective for "
+             ".glyphs / .glyphspackage working sources; ignored for TTFs.",
+    )
+    parser.add_argument(
+        "--ai",
+        choices=["claude", "openai", "gemini"],
+        default=None,
+        help="Add an AI-written health-check summary at the top of the report "
+             "using the chosen provider. Requires the provider's SDK and an "
+             "API key (in ~/.glyph-audit/config.toml or env vars).",
+    )
+    parser.add_argument(
+        "--prompt",
+        default=None,
+        help="Path to a custom prompt template. Defaults to the bundled "
+             "prompts/health_check.md inside the package.",
+    )
+    parser.add_argument(
+        "--config",
+        default=None,
+        help="Path to config TOML (default: ~/.glyph-audit/config.toml). "
+             "Holds API keys, [instances.NAME] map, and [defaults] section. "
+             "See examples/config.toml.example for the schema.",
+    )
+
+    args = parser.parse_args(argv)
+
+    # Load [defaults] from the config file (silently missing is fine).
+    try:
+        config_defaults = load_defaults(args.config)
+    except ConfigError as e:
+        print(f"FAIL: {e}", file=sys.stderr)
+        return 2
+
+    # Resolve each option: CLI value wins, then config default, then hard-coded.
+    def resolved(arg_value, config_key, hardcoded):
+        if arg_value is not None:
+            return arg_value
+        if config_key in config_defaults:
+            return config_defaults[config_key]
+        return hardcoded
+
+    args.tolerance         = resolved(args.tolerance,         "tolerance",        HARDCODED["tolerance"])
+    args.title             = resolved(args.title,             "title",            HARDCODED["title"])
+    args.filter            = resolved(args.filter,            "filter",           HARDCODED["filter"])
+    args.ai                = resolved(args.ai,                "ai",               None)
+    args.prompt            = resolved(args.prompt,            "prompt",           None)
+    args.no_normalize_upm  = bool(resolved(args.no_normalize_upm, "no_normalize_upm", False))
+    args.from_config       = bool(resolved(args.from_config,  "from_config",      False))
+
+    # Output path needs filter-awareness in its hard-coded fallback.
+    filter_active = args.filter != "all"
+    output_default = HARDCODED["output_filtered"] if filter_active else HARDCODED["output_no_filter"]
+    args.output = resolved(args.output, "output", output_default)
+
+    # Build the full pair list. CLI --pair entries first (no extra axes —
+    # any '@axis=…' is already in the spec string and parsed by load_font).
+    # Then [instances.NAME] entries from config.
+    pair_list: list[tuple[str, str, dict[str, float]]] = [
+        (name, spec, {}) for (name, spec) in args.pair
+    ]
+    if args.from_config:
+        try:
+            instances = load_instances(args.config)
+        except ConfigError as e:
+            print(f"FAIL: {e}", file=sys.stderr)
+            return 2
+        if not instances:
+            path_for_msg = args.config or "~/.glyph-audit/config.toml"
+            print(
+                f"WARNING: --from-config given but no [instances.NAME] entries "
+                f"found in {path_for_msg}.",
+                file=sys.stderr,
+            )
+        pair_list.extend((inst.name, inst.ref, inst.axes) for inst in instances)
+
+    if not pair_list:
+        parser.error("at least one --pair or --from-config (with [instances]) is required")
+
+    working_filter = None
+    filter_label = None
+    if args.filter != "all":
+        allowed_colors = COLOR_FILTERS[args.filter]
+        names = sorted(GLYPHS_COLOR_NAMES[c] for c in allowed_colors)
+        filter_label = f"{args.filter} (colour {' or '.join(str(c) for c in sorted(allowed_colors))} = {' / '.join(names)})"
+
+    comparator = TieredComparator(
+        tolerance_units=args.tolerance,
+        normalize_upm=not args.no_normalize_upm,
+    )
+
+    results = []
+    any_mismatch = False
+
+    for master_name, ref_spec, ref_axes in pair_list:
+        print(f"Loading working master {master_name!r} ← {args.working}", file=sys.stderr)
+        try:
+            working_view = load_font(args.working, master=master_name,
+                                     label=f"{_basename(args.working)} {master_name}")
+        except (FileNotFoundError, ValueError, RuntimeError) as e:
+            print(f"  FAIL: {e}", file=sys.stderr)
+            return 2
+
+        ref_label_extra = f" @{','.join(f'{k}={v:g}' for k,v in ref_axes.items())}" if ref_axes else ""
+        print(f"Loading reference {ref_spec!r}{ref_label_extra}", file=sys.stderr)
+        try:
+            reference_view = load_font(ref_spec, axes=ref_axes or None)
+        except (FileNotFoundError, ValueError, RuntimeError) as e:
+            print(f"  FAIL: {e}", file=sys.stderr)
+            return 2
+
+        # Build the working filter for this pair (working_view varies per pair
+        # because each pair loads its own master). Filter only applies to
+        # Glyphs sources where colours are populated.
+        pair_filter = None
+        if working_filter is None and args.filter != "all":
+            allowed_colors = COLOR_FILTERS[args.filter]
+            if not working_view.colors:
+                print(
+                    f"  WARNING: --filter {args.filter} requested but the working "
+                    f"font has no colour metadata (source kind: "
+                    f"{working_view.source_kind}). Ignoring filter for this pair.",
+                    file=sys.stderr,
+                )
+            else:
+                colors_map = working_view.colors
+                pair_filter = lambda name, m=colors_map, a=allowed_colors: m.get(name) in a
+
+        result = comparator.compare(
+            working_view, reference_view,
+            pair_label=master_name,
+            working_filter=pair_filter,
+            filter_label=filter_label if pair_filter else None,
+        )
+        results.append(result)
+
+        c = result.counts()
+        t1_mm = c["tier1"]["mismatch"]
+        t2_mm = c["tier2"]["mismatch"]
+        if t1_mm or t2_mm:
+            any_mismatch = True
+        print(
+            f"  Tier1: {c['tier1']['match']}/{sum(c['tier1'].values())} matched, "
+            f"{t1_mm} mismatched. "
+            f"Tier2: {c['tier2']['match']}/{sum(c['tier2'].values())} matched, "
+            f"{t2_mm} mismatched. "
+            f"Tier3 internal: {c['tier3']['internal']}.",
+            file=sys.stderr,
+        )
+
+    ai_summary_text: Optional[str] = None
+    ai_provider_label: Optional[str] = None
+    if args.ai:
+        # Lazy import — keeps the AI subpackage off the import path for users
+        # who never use --ai.
+        from .ai import summarize, AIError
+        ai_provider_label = args.ai
+        try:
+            print(f"Requesting AI summary from {args.ai} …", file=sys.stderr)
+            ai_summary_text = summarize(
+                results, args.ai,
+                config_path=args.config,
+                prompt_path=args.prompt,
+            )
+            print("AI summary received.", file=sys.stderr)
+        except AIError as e:
+            ai_summary_text = (
+                f"_AI summary unavailable: {e}_"
+            )
+            print(f"  WARNING: AI summary failed — {e}", file=sys.stderr)
+
+    write_markdown(
+        results, args.output,
+        title=args.title,
+        ai_summary=ai_summary_text,
+        ai_provider=ai_provider_label,
+    )
+    print(f"Wrote {args.output}", file=sys.stderr)
+    return 1 if any_mismatch else 0
+
+
+def _basename(path: str) -> str:
+    return os.path.basename(path.rstrip("/"))
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,76 @@
+# GlyphAudit configuration
+#
+# Save this file at ~/.glyph-audit/config.toml (default location) or
+# pass --config PATH to point at it from another location. API keys live
+# here; treat it like any other secrets file. If you keep a copy in a
+# git repo, add the real config (not the example) to .gitignore.
+#
+# First-time setup:
+#   mkdir -p ~/.glyph-audit
+#   cp examples/config.toml.example ~/.glyph-audit/config.toml
+#   $EDITOR ~/.glyph-audit/config.toml
+#
+# Sections (all optional — set only what you want):
+#   [defaults]            CLI flag defaults (output, filter, tolerance, …)
+#   [providers.NAME]      AI provider API keys + model overrides
+#   [instances.NAME]      Reusable working-master → reference map
+#
+# Anything you set in [defaults] is overridden by an explicit CLI flag.
+
+
+# --- Default CLI values ----------------------------------------------------
+#
+# Set frequently-used flags here so you don't retype them every run.
+# Anything you pass on the command line overrides these.
+#
+# [defaults]
+# output           = "glyph-audit-report.md"   # auto-flips to "glyph-audit-filtered.md" if filter is set
+# filter           = "ready"                     # all / yellow / light-green / green / ready
+# tolerance        = 1.0
+# title            = "Velarium Coverage"
+# ai               = "claude"                    # default --ai provider
+# prompt           = "~/.glyph-audit/prompts/strict.md"
+# no_normalize_upm = false
+# from_config      = true                        # auto-build pairs from [instances.*]
+
+
+# --- AI provider keys ------------------------------------------------------
+#
+# Only the providers you actually plan to use need their section filled
+# in. Missing sections fall back to environment variables:
+#   ANTHROPIC_API_KEY  /  OPENAI_API_KEY  /  GEMINI_API_KEY
+#
+# `model` is optional — sensible defaults are baked into the tool.
+
+[providers.claude]
+api_key = "sk-ant-REPLACE-ME"
+# model = "claude-sonnet-4-6"
+
+[providers.openai]
+api_key = "sk-REPLACE-ME"
+# model = "gpt-4o-mini"
+
+[providers.gemini]
+api_key = "AIza-REPLACE-ME"
+# model = "gemini-2.0-flash"
+
+
+# Optional: a reusable instance map. Pass `--from-config` on the CLI to
+# turn each [instances.NAME] entry into a working-master → reference pair.
+# `ref` is any spec the tool understands:
+#   * a path to a static .ttf / .otf
+#   * a path to a variable .ttf / .otf  (combine with the `axis` table to pin)
+#   * "Family-system"            → installed system font (dash or space form)
+#   * "Family Bold-system"
+# The optional `axis` table pins a variable font's design-space location.
+# It's silently ignored for static fonts.
+#
+# [instances.Regular]
+# ref = "VERDANA.TTF"
+#
+# [instances.Bold]
+# ref = "Inter[wght].ttf"
+# axis = { wght = 700 }
+#
+# [instances.Light]
+# ref = "Inter-Light-system"

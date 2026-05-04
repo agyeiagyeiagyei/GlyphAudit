@@ -1,0 +1,30 @@
+# Python build / install artefacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.eggs/
+pip-wheel-metadata/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local config (holds API keys; never commit)
+config.toml
+*.config.toml
+.glyph-audit/
+
+# Reports the tool itself produces
+glyph-audit*.md
+*-report.md
