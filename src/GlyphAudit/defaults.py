@@ -7,7 +7,7 @@ Lets users skip frequently-used CLI flags by setting them once in
     output    = "glyph-audit-report.md"
     filter    = "ready"
     tolerance = 1.0
-    title     = "Velarium Coverage"
+    title     = "MyTypeface Coverage"
     ai        = "claude"
     prompt    = "~/.glyph-audit/prompts/strict.md"
     no_normalize_upm = false

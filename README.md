@@ -35,9 +35,9 @@ The tool accepts three kinds of reference, distinguished by the value passed to 
 
 | Value form | Loader |
 |---|---|
-| `path/to/Verdana.ttf` or `.otf` | TTF/OTF — reads cmap, hmtx, and GSUB |
-| `path/to/Velarium.glyphspackage` or `.glyphs` | Glyphs source — uses glyphsLib, derives variants from name suffixes |
-| `Family-system` *(suffix `-system`)* | Installed system font. Family and style accept either a space (`Verdana Bold-system`) or a hyphen (`Verdana-Bold-system`). |
+| `path/to/Helvetica.ttf` or `.otf` | TTF/OTF — reads cmap, hmtx, and GSUB |
+| `path/to/MyTypeface.glyphspackage` or `.glyphs` | Glyphs source — uses glyphsLib, derives variants from name suffixes |
+| `Family-system` *(suffix `-system`)* | Installed system font. Family and style accept either a space (`Helvetica Bold-system`) or a hyphen (`Helvetica-Bold-system`). |
 
 Target font accepts the same forms.
 
@@ -59,7 +59,7 @@ For projects with several weights, define each as `[instances.NAME]` in `~/.glyp
 
 ```toml
 [instances.Regular]
-ref = "VERDANA.TTF"
+ref = "Reference-Regular.ttf"
 
 [instances.Bold]
 ref = "Inter[wght].ttf"
@@ -71,7 +71,7 @@ ref = "Inter-Light-system"
 
 ```bash
 python -m GlyphAudit \
-    --target sources/Velarium-working.glyphspackage \
+    --target sources/MyTypeface.glyphspackage \
     --from-config
 ```
 
@@ -85,7 +85,7 @@ Frequently-used flags (`--output`, `--filter`, `--tolerance`, `--title`, `--ai`,
 [defaults]
 filter      = "ready"
 tolerance   = 1.0
-title       = "Velarium Coverage"
+title       = "MyTypeface Coverage"
 ai          = "claude"
 from_config = true
 ```
@@ -93,7 +93,7 @@ from_config = true
 Precedence (highest first): explicit CLI flag → `[defaults]` in config → built-in fallback. With the table above you can run:
 
 ```bash
-python -m GlyphAudit --target sources/Velarium-working.glyphspackage
+python -m GlyphAudit --target sources/MyTypeface.glyphspackage
 ```
 
 …and get a `ready`-filtered, AI-summarised report against whichever pairs `[instances.*]` defines. Pass `--filter all` on the CLI to override the config and get an unfiltered run.
@@ -120,9 +120,9 @@ glyphsLib   # only if you load Glyphs sources
 
 ```bash
 python -m GlyphAudit \
-    --target sources/Velarium-working.glyphspackage \
-    --pair Regular=sources/reference/VERDANA.TTF \
-    --pair Bold=sources/reference/VERDANAB.TTF \
+    --target sources/MyTypeface.glyphspackage \
+    --pair Regular=sources/reference/Reference-Regular.ttf \
+    --pair Bold=sources/reference/Reference-Bold.ttf \
     --output coverage-report.md
 ```
 
@@ -133,7 +133,7 @@ A `--pair` is `MASTER_NAME=REFERENCE`. The master name selects which target mast
 ```bash
 python -m GlyphAudit \
     --target MyFont.ttf \
-    --pair Default="Verdana-system" \
+    --pair Default="Helvetica-system" \
     --output report.md
 ```
 
@@ -141,9 +141,9 @@ python -m GlyphAudit \
 
 ```bash
 python -m GlyphAudit \
-    --target sources/Velarium.glyphspackage \
-    --pair Bold=sources/reference/VERDANAB.TTF \
-    --pair Bold-vs-system="Verdana Bold-system" \
+    --target sources/MyTypeface.glyphspackage \
+    --pair Bold=sources/reference/Reference-Bold.ttf \
+    --pair Bold-vs-system="Helvetica Bold-system" \
     --output report.md
 ```
 

@@ -3,13 +3,13 @@
 Each loader returns a `FontView`. The CLI dispatches based on the
 reference spec syntax:
 
-    path/to/Verdana.ttf            -> TTFLoader (static)
+    path/to/Helvetica.ttf            -> TTFLoader (static)
     path/to/Inter[wght].ttf@wght=400  -> TTFLoader, instantiated at wght=400
-    path/to/Velarium.glyphspackage -> GlyphsLoader
-    path/to/Velarium.glyphs        -> GlyphsLoader
-    Verdana-system                 -> SystemLoader (suffix '-system')
-    Verdana Bold-system            -> SystemLoader (space-form family+style)
-    Verdana-Bold-system            -> SystemLoader (dash-form family+style)
+    path/to/MyTypeface.glyphspackage -> GlyphsLoader
+    path/to/MyTypeface.glyphs        -> GlyphsLoader
+    Helvetica-system                 -> SystemLoader (suffix '-system')
+    Helvetica Bold-system            -> SystemLoader (space-form family+style)
+    Helvetica-Bold-system            -> SystemLoader (dash-form family+style)
     Inter-system@wght=400          -> SystemLoader, VF instantiated at wght=400
 
 System loading walks platform font directories looking for a face whose
@@ -383,7 +383,7 @@ def _load_system(family: str, label: Optional[str] = None,
         raise FileNotFoundError(
             f"Could not locate system font matching {family!r}. "
             f"Try the exact family name, optionally with a subfamily "
-            f"(e.g. 'Verdana Bold' or 'Verdana-Bold')."
+            f"(e.g. 'Helvetica Bold' or 'Helvetica-Bold')."
         )
 
     view = _load_ttf(best_match_path, label=label or family, axes=axes)
@@ -402,10 +402,10 @@ def _load_system(family: str, label: Optional[str] = None,
 
 
 def _split_family_subfamily(name: str) -> tuple[str, Optional[str]]:
-    """Heuristic split: 'Verdana Bold' -> ('Verdana', 'Bold').
+    """Heuristic split: 'Helvetica Bold' -> ('Helvetica', 'Bold').
 
     Accepts either spaces or hyphens between family and subfamily, so
-    'Verdana-Bold' parses the same as 'Verdana Bold'. Only the LAST
+    'Helvetica-Bold' parses the same as 'Helvetica Bold'. Only the LAST
     separator before a recognised style token is treated as the split
     point — multi-word families like 'Source Sans Pro' or
     'Source-Sans-Pro' are kept intact.

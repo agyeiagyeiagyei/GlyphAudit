@@ -72,7 +72,7 @@ class FontView:
     """
 
     label: str
-    """Human-readable label, e.g. 'Verdana Regular'."""
+    """Human-readable label, e.g. 'Helvetica Regular'."""
 
     source: str
     """Path or system marker — for the report's provenance line."""

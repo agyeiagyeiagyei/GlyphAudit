@@ -58,7 +58,7 @@
 #
 # 1. Static TTF / OTF on disk
 #    [instances.Regular]
-#    ref = "/Users/me/fonts/Verdana.ttf"
+#    ref = "/Users/me/fonts/Helvetica.ttf"
 #
 # 2. Variable font on disk + axis pin
 #    [instances.Regular]

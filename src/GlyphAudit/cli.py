@@ -3,9 +3,9 @@
 Usage:
 
   glyph-audit \\
-    --target sources/Velarium-working.glyphspackage \\
-    --pair Regular=sources/reference/VERDANA.TTF \\
-    --pair Bold=sources/reference/VERDANAB.TTF \\
+    --target sources/MyTypeface.glyphspackage \\
+    --pair Regular=sources/reference/Reference-Regular.ttf \\
+    --pair Bold=sources/reference/Reference-Bold.ttf \\
     --output coverage-report.md
 
 (equivalent to `python -m GlyphAudit ...`)
@@ -16,8 +16,8 @@ half can be:
   * path to a .ttf or .otf
   * path to a .glyphspackage or .glyphs
   * "<Name>-system"   (system-installed font; '-' or ' ' separates
-                       family from style: 'Verdana Bold-system' or
-                       'Verdana-Bold-system')
+                       family from style: 'Helvetica Bold-system' or
+                       'Helvetica-Bold-system')
 
 Append '@axis=value[,axis=value]' to pin a variable font:
 
@@ -28,7 +28,7 @@ Or define a reusable instance map in ~/.glyph-audit/config.toml and
 pass --from-config to skip --pair entirely:
 
     [instances.Regular]
-    ref = "VERDANA.TTF"
+    ref = "Reference-Regular.ttf"
 
     [instances.Bold]
     ref = "Inter[wght].ttf"

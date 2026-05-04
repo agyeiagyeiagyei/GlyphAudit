@@ -7,7 +7,7 @@ the user typing them on the command line.
 Example config:
 
     [instances.Regular]
-    ref = "VERDANA.TTF"
+    ref = "Reference-Regular.ttf"
 
     [instances.Bold]
     ref = "Inter[wght].ttf"
