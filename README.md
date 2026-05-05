@@ -1,6 +1,6 @@
 # GlyphAudit
 
-Tiered audit of a target font against one or more references — by codepoint, OpenType feature variant, and unencoded internals. Designed for type designers working on metrics-compatible faces who want a fast "does this typeset like the reference?" answer per master.
+Tiered audit of a target font against one or more references — by codepoint, OpenType feature variant, and unencoded internals. Designed for type designers working in Glyphs on metrics-compatible faces who want a fast "does this typeset like the reference?" answer per master.
 
 ## Install
 
